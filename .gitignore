@@ -1,0 +1,6 @@
+/ebin
+/deps
+erl_crash.dump
+*.ez
+/Elixir.Mix.Tasks.Check.beam
+/fp_oo.html

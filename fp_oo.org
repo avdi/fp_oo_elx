@@ -1,0 +1,267 @@
+
+* Setup
+
+Let's define a module to keep exercises in.
+
+#+name: exercises_module
+#+BEGIN_SRC elixir :tangle lib/fp_oo_elx/exercises.ex :noweb yes
+  defmodule FpOoElx.Exercises do
+    <<exercises>>
+  end
+#+END_SRC
+
+And a module to keep tests in.
+
+#+name: tests_module
+#+BEGIN_SRC elixir :tangle test/exercises_test.exs :noweb yes
+  defmodule ExercisesTest do
+    use ExUnit.Case
+    import FpOoElx.Exercises
+    <<tests>>
+  end
+#+END_SRC
+
+
+* Chapter 1
+
+
+** Re-implementing apply in Elixir                              :fpoo:elixir:
+   :PROPERTIES:
+   :ID:       o2b:6e62c054-5535-4cd8-8b37-51b176ad4585
+   :POST_DATE: [2013-11-16 Sat 17:31]
+   :POSTID:   7849
+   :BLOG:     virtuouscode
+   :CATEGORY: Elixir
+   :END:
+
+Elixir already has a perfectly good [[http://elixir-lang.org/docs/stable/Kernel.html#apply/2][=apply=]]. But [[https://leanpub.com/fp-oo][FPOO]] suggests I try
+to write my own version, and why not?
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  def my_apply(func, sequence) do
+    code = quote do
+      unquote(func).(unquote_splicing(sequence))
+    end
+    {result, _} = Code.eval_quoted(code)
+    result
+  end
+#+END_SRC
+
+This is considerably more verbose than the Clojure example in the
+book, without really seeming to add much expressiveness:
+
+#+BEGIN_SRC clj
+  (def my-apply
+    (fn [function sequence]
+      (eval (cons function sequence))))
+#+END_SRC
+
+Perhaps an Elixir-experienced reader can show me a more idiomatic
+form. Although I think Elixir metaprogramming is likely always going
+to be wordier than Lisp because of a) its less-concise
+quoting/unquoting constructs; and b) the fact that the sexp-ish things
+that Elixir macros work on under the covers are more complex than
+their lisp counterparts. As an example, here's the code-as-data
+version of adding two integers:
+
+#+BEGIN_SRC elixir
+quote do: 1 + 2
+# => {:+, [context: Elixir, import: Kernel], [1, 2]}
+#+END_SRC
+
+Whereas the lisp code-as-data representation of =(+ 1 2)= is,
+well... =(+ 1 2)=.
+
+Actually, that gives me an idea. Let's see if we can do this by
+constructing sexps instead of with quoting and unquoting.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  def my_apply2(func, sequence) do
+    {result, _} = Code.eval_quoted({{:., [], [func]}, [], sequence})
+    result
+  end
+#+END_SRC
+
+This is a lot shorter. It feels kind of like working with secret
+knowledge though. The Elixir sexp representation is so different from
+ordinary written code that it's hard to look at code that /constructs/
+code in this way and visualize what it's building.
+
+Here are the tests, just to prove this all works.
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "my_apply" do
+    assert(my_apply(&(&1 + &2), [1,2]) == 3)
+  end
+
+  test "my_apply2" do
+    assert(my_apply2(&(&1 + &2), [1,2]) == 3)
+  end
+#+END_SRC
+
+Here I'm using the new [[http://elixir-lang.org/docs/stable/Kernel.SpecialForms.html#&/1][capture operator]], introduced in 0.11.0, to
+capture an anonymous function reference to [[http://elixir-lang.org/docs/stable/Kernel.html#%2B/2][=Kernel.+/2=]]:
+
+#+BEGIN_SRC elixir
+&(&1 + &2)
+#+END_SRC
+
+Believe it or not, this is a lot more concise than the old way. It's
+still frustratingly awkward coming from Lisp, Haskell, or pretty much
+any other FPL. Or Ruby, for that matter, where we'd probably represent
+the function (method) to be applied as simply =:+=. In Clojure, we
+take a reference to the =+= function using, wait for it... =+=.
+
+Well, now that I've applied myself (hah!) to this little problem,
+let's see how Elixir itself implements =apply=. This is easy, because
+the Elixir [[http://elixir-lang.org/docs/stable/Kernel.html#apply/2][API docs]] link directly to the relevant code on
+Github. Bless you for that, [[https://github.com/josevalim][Mr. Valim]].
+
+Turns out, Elixir just punts it over to Erlang:
+
+#+BEGIN_SRC elixir
+  defmacro apply(fun, args) do
+    quote do
+      :erlang.apply(unquote(fun), unquote(args))
+    end
+  end
+#+END_SRC
+
+I should have guessed this would be the case.
+
+** FPOO 1.18 Exercises in Elixir
+
+
+*** Exercise 3: add-squares
+
+First up, we have =add-squares=. Let's write a test...
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "1.18-3: add-squares" do
+    assert(add_squares([1, 2, 5]) == 30)
+  end
+#+END_SRC
+
+My Elixir version takes a list rather than a variable number of
+arguments, because Erlang doesn't do the varargs thing.
+
+As for implementation...
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  def add_squares([n|ns]), do: n*n + add_squares(ns)
+  def add_squares([]), do: 0
+#+END_SRC
+
+Elixir is all about recursion and pattern matching.
+
+(Aside: I understand why it's there, but that darn comma after the
+method and before the =do:= when writing one-liners gets me every
+freakin' time.)
+
+Hmmm... so far FPOO has avoided introducing =defun=, instead defining
+functions by creating them anonymously and then assigning them to a
+name. I'm suddenly curious how easy this is in Elixir.
+
+#+BEGIN_SRC elixir
+  add_squares = fn
+                  [n|ns] -> n*n + add_squares(ns)
+                  []     -> 0
+                end
+#+END_SRC
+
+I realized halfway through writing this that it will lead to a compile
+error:
+
+#+BEGIN_EXAMPLE
+** (CompileError) lib/fp_oo_elx/exercises.ex:17: function add_squares/1 un
+defined
+#+END_EXAMPLE
+
+I remember now. There's no way (that I'm aware of) to refer to an
+anonymous function within itself, so we can't do recursive anonymous
+functions in Elixir.
+
+(Aside: why is there no =do= after =fn=???)
+
+OK, I guess I'll stick to named functions. I can always take
+anonymous-style references to named functions with the capture (=&=)
+operator, so hopefully this won't get in the way.
+
+*** Exercise 4: Bizarro-factorial
+
+"Implement a bizarre version of factorial that uses neither iteration
+of recursion". Specifically, the instructions say to use =range= and
+=apply=.
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "1.18-4: bizarro-factorial" do
+    assert(bizarro_factorial(5) == 120)
+  end
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  def bizarro_factorial(n) do
+    (1..n) |> Enum.reduce(&(&1 * &2))
+  end
+#+END_SRC
+
+This is probably a gratuitous use of the pipeline operator (=|>=),
+but I don't care!
+
+Note that FPOO specifies that I use only =range= and =apply=. The
+range operator (=..=) is the Elixir equivalent of =range=. On the
+other hand, =apply= doesn't really translate well. Sure, Elixir has
+it. But Erlang (and thus Elixir) doesn't have the concept of
+functions that take arbitrary numbers of arguments, the way =*= in
+lisp can yield the product of an arbitrary number of numbers:
+
+#+BEGIN_SRC clj
+(* 1 2 3 4 5)
+#+END_SRC
+
+Instead, =Kernel.*= is a strictly binary operator. So I have to cheat
+and use =Enum.reduce=, which is a recursive function under the covers.
+
+
+*** Exercise 5: Various sequence functions
+
+I'm going to quickly run through these just so I know what the Elixir
+equivalents are. I'll use the =Stream= versions when they exist,
+since the Clojure versions demonstrated in the book all operate on
+potentially lazy sequences.
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "1.18-5: sequence functions" do
+    # take
+    assert(Enum.take([1,2,3], 2) == [1,2])
+    # distinct
+    assert(Enum.uniq([1,2,1,3,2]) == [1,2,3])
+    # concat
+    assert(Stream.concat([[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
+    # repeat
+    xs = Stream.repeatedly(fn -> "x" end)
+    assert(xs |> Enum.take(3) == ["x", "x", "x"])
+    
+    # interleave
+    # there appears to be no interleave. There's Enum.zip, which only
+    # zips two collections, and isn't lazy(?).
+
+   # drop
+   assert((1..4) |> Enum.drop(2) == [3,4])
+
+   # drop-last
+   assert((1..4) |> Enum.slice(0..-2) == [1,2,3])
+
+   # flatten
+   assert(List.flatten([[1,2], [3,4]]) == [1,2,3,4])
+  end
+#+END_SRC
+
