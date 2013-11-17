@@ -20,21 +20,20 @@ And a module to keep tests in.
     use ExUnit.Case
     import FpOoElx.Exercises
     <<tests>>
+    doctest FpOoElx.Exercises
   end
 #+END_SRC
 
-
-* Chapter 1
-
-
-** Re-implementing apply in Elixir                              :fpoo:elixir:
+* Re-implementing apply in Elixir                               :fpoo:elixir:
    :PROPERTIES:
    :ID:       o2b:6e62c054-5535-4cd8-8b37-51b176ad4585
-   :POST_DATE: [2013-11-16 Sat 17:31]
+   :POST_DATE: [2013-11-18 Mon 09:00]
    :POSTID:   7849
    :BLOG:     virtuouscode
    :CATEGORY: Elixir
    :END:
+
+[boilerplate bypath="fp-oo"]
 
 Elixir already has a perfectly good [[http://elixir-lang.org/docs/stable/Kernel.html#apply/2][=apply=]]. But [[https://leanpub.com/fp-oo][FPOO]] suggests I try
 to write my own version, and why not?
@@ -73,7 +72,14 @@ quote do: 1 + 2
 #+END_SRC
 
 Whereas the lisp code-as-data representation of =(+ 1 2)= is,
-well... =(+ 1 2)=.
+well... =(+ 1 2)=. Though to be fair, that big ugly keyword list in
+the middle is optional metadata. The most minimal representation is:
+
+#+BEGIN_SRC elixir
+{:+, [], [1, 2]}
+#+END_SRC
+
+...which is not /that/ much bigger than the lisp version.
 
 Actually, that gives me an idea. Let's see if we can do this by
 constructing sexps instead of with quoting and unquoting.
@@ -134,16 +140,22 @@ Turns out, Elixir just punts it over to Erlang:
 
 I should have guessed this would be the case.
 
-** FPOO Ch. 1 Exercises in Elixir                       :fpoo:elixir:clojure:
-   :PROPERTIES:
-   :ID:       o2b:e2da1415-8763-47d5-bc21-26a01da342db
-   :POST_DATE: [2013-11-19 Tue 09:00]
-   :POSTID:   7857
-   :BLOG:     virtuouscode
-   :CATEGORY: Elixir
-   :END:
 
-*** Exercise 3: add-squares
+
+
+
+* FPOO Chapter 1 in Elixir                              :fpoo:elixir:clojure:
+  :PROPERTIES:
+  :ID:       o2b:e2da1415-8763-47d5-bc21-26a01da342db
+  :POST_DATE: [2013-11-20 Wed 09:00]
+  :POSTID:   7857
+  :BLOG:     virtuouscode
+  :CATEGORY: Elixir
+  :END:
+
+[boilerplate bypath="fp-oo"]
+
+** Exercise 3: add-squares
 
 First up, we have =add-squares=. Let's write a test...
 
@@ -202,7 +214,7 @@ OK, I guess I'll stick to named functions. I can always take
 anonymous-style references to named functions with the capture (=&=)
 operator, so hopefully this won't get in the way.
 
-*** Exercise 4: Bizarro-factorial
+** Exercise 4: Bizarro-factorial
 
 "Implement a bizarre version of factorial that uses neither iteration
 of recursion". Specifically, the instructions say to use =range= and
@@ -239,7 +251,7 @@ lisp can yield the product of an arbitrary number of numbers:
 Instead, =Kernel.*= is a strictly binary operator. So I have to cheat
 and use =Enum.reduce=, which is a recursive function under the covers.
 
-*** Exercise 5: Various sequence functions
+** Exercise 5: Various sequence functions
 
 I'm going to quickly run through these just so I know what the Elixir
 equivalents are. I'll use the =Stream= versions when they exist,
@@ -254,7 +266,7 @@ potentially lazy sequences.
     # distinct
     assert(Enum.uniq([1,2,1,3,2]) == [1,2,3])
     # concat
-    assert(Stream.concat([u[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
+    assert(Stream.concat([[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
     # repeat
     xs = Stream.repeatedly(fn -> "x" end)
     assert(xs |> Enum.take(3) == ["x", "x", "x"])
@@ -313,7 +325,7 @@ time.
 
 
 
-*** Exercise 6: prefix-of?
+** Exercise 6: prefix-of?
 
 #+name: tests
 #+BEGIN_SRC elixir
@@ -333,7 +345,7 @@ time.
   end
 #+END_SRC
 
-*** Exercise 7: tails
+** Exercise 7: tails
 
 #+name: tests
 #+BEGIN_SRC elixir
@@ -344,7 +356,7 @@ time.
 
 #+name: exercises
 #+BEGIN_SRC elixir  
-  def tails([x|xs] = sequence), do: [sequence|tails(xs)]
+  def tails([_|xs] = sequence), do: [sequence|tails(xs)]
   def tails([]), do: [[]]
 #+END_SRC
 
@@ -392,9 +404,254 @@ multiple sequences in parallel, which is kinda cool.
 
 
 
+* FPOO Chapters 2 & 3: Basic Objects in Elixir                  :fpoo:elixir:
+
+[boilerplate bypath="fp-oo"]
+
+First version, without knowledge of class:
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  defmodule Objects1 do
+    import Dict
+    def new_point(x, y), do: [x: x, y: y]
+    def x(point), do: get(point, :x)
+    def y(point), do: get(point, :y)
+  end
+#+END_SRC
+
+#+name: tests
+#+BEGIN_SRC elixir
+  defmodule TestObjects1 do
+    import FpOoElx.Exercises.Objects1
+    test "constructing a Point" do
+      p = new_point(3,5)
+      assert(x(p) == 3)
+      assert(y(p) == 5)
+    end
+  end
+#+END_SRC
+
+Second version, with knowledge of class and =shift= method:
+
+#+name: tests
+#+BEGIN_SRC elixir :noweb strip-export
+  defmodule TestObjects2 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects2
+    test "constructing a Point" do
+      p = new_point(3,5)
+      assert(x(p) == 3)
+      assert(y(p) == 5)
+      assert(class_of(p) == :point)
+      p = shift(p, 7, -2)
+      assert(x(p) == 10)
+      assert(y(p) == 3)      
+    end
+    doctest FpOoElx.Exercises.Objects2
+  end  
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  defmodule Objects2 do
+    import Dict
+    def new_point(x, y), do: [x: x, y: y, __class_symbol__: :point]
+    def x(this), do: get(this, :x)
+    def y(this), do: get(this, :y)   
+    def class_of(object), do: get(object, :__class_symbol__)
+    def shift(this, xinc, yinc), do: new_point(x(this) + xinc, y(this) + yinc)
+    <<objects2>>
+  end
+#+END_SRC
+
+
+** Exercise 1: Implement add
+
+I think I'll switch over to doctests instead of separate unit tests.
+
+#+name: objects2
+#+BEGIN_SRC elixir
+  @doc """
+  ## Examples:
+      iex> p1 = new_point(3, 7)
+      iex> p2 = new_point(8, -3)
+      iex> p3 = add(p1, p2)
+      iex> x(p3)
+      11
+      iex> y(p3)
+      4
+  """
+  def add(p1, p2), do: shift(p1, x(p2), y(p2))
+#+END_SRC
+
+
+** Exercise 2: A "new" operator
+
+If I did this exactly like the Clojure version I'd have to call it
+like this:
+
+#+BEGIN_SRC ruby
+make(&new_point/1, [3, 5])
+#+END_SRC
+
+Blerg. I'll make a macro instead.
+
+#+name: objects2
+#+BEGIN_SRC elixir
+  @doc """
+  ## Examples
+      iex> p = make(point, [3, 5])
+      iex> class_of(p)
+      :point
+      iex> x(p)
+      3
+      iex> y(p)
+      5
+  """
+  defmacro make(class, args) do
+    {classname,_,_} = class
+    constructor = binary_to_atom("new_#{classname}")
+    quote do
+      unquote(constructor)(unquote_splicing(args))
+    end
+  end
+#+END_SRC
+
+OK, that was kinda cool. Of course, if I were willing to put up with
+passing the classname as a symbol rather than as a bareword, I
+wouldn't need a macro.
+
+#+name: objects2
+#+BEGIN_SRC elixir
+  @doc """
+  ## Examples
+      iex> p = make2(:point, [3, 5])
+      iex> class_of(p)
+      :point
+      iex> x(p)
+      3
+      iex> y(p)
+      5
+  """
+  def make2(class, args) do
+    constructor = :"new_#{class}"
+    code = {constructor, [], args}
+    {result, _} = Code.eval_quoted(code, binding, delegate_locals_to: __MODULE__)
+    result
+  end
+#+END_SRC
+
+Note the use of =delegate_locals_to: __MODULE__= to enable the
+=eval_quoted= to find methods in the current module.
+
+The next three exercises involve comparing triangles and I just can't
+get excited about that, so I'm gonna stop here.
 
 
 
+* FPOO Chapter 4: Encapsulating methods in the constructor
+
+[boilerplate bypath="fp-oo"]
+
+#+name: tests
+#+BEGIN_SRC elixir :noweb strip-export :exports none
+  defmodule TestObjects3 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects3
+    doctest FpOoElx.Exercises.Objects3
+  end  
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir :exports none
+  defmodule Objects3 do
+    import Dict
+    defmacro make(class, args) do
+      {classname,_,_} = class
+      constructor = binary_to_atom("new_#{classname}")
+      quote do
+        unquote(constructor)(unquote_splicing(args))
+      end
+    end
+    <<objects3>>
+  end
+#+END_SRC
+
+Today I slightly refine the nascent OO implementation in
+Elixir. Here's the new =point= constructor, with methods contained
+within it:
+
+#+BEGIN_SRC elixir
+  def new_point(x, y) do
+    [
+      x: x, 
+      y: y, 
+      __class_symbol__: :point,
+      __methods__: [
+        class: &get(&1, :__class_symbol__),
+        shift: fn 
+                 (this, xinc, yinc) -> new_point(get(this, :x) + xinc, get(this, :y) + yinc)
+               end
+      ]
+    ]
+  end  
+#+END_SRC
+
+And here's =send_to=, which (slightly) eases sending messages to
+objects.
+
+#+name: objects3
+#+BEGIN_SRC elixir
+  @doc """
+  ## Examples
+      iex> p = make(point, [3, 5])
+      iex> p2 = send_to(p, :shift, [2,4])
+      iex> Dict.get(p2, :x)
+      5
+      iex> Dict.get(p2, :y)
+      9 
+  """
+  def send_to(object, message, args // []) do
+    method_table = get(object, :__methods__)
+    method       = get(method_table, message)
+    apply(method, [object|args])
+  end
+#+END_SRC
 
 
+** Exercise 1: x, y, and add
 
+This exercise re-adds =x=, =y=, and =add= methods.
+
+#+name: objects3
+#+BEGIN_SRC elixir
+  @doc """
+  iex> p1 = make(point, [3,5])
+  iex> p2 = make(point, [-2,3])
+  iex> p3 = send_to(p1, :add, [p2])
+  iex> send_to(p3, :x)
+  1
+  iex> send_to(p3, :y)
+  8
+  """
+  def new_point(x, y) do
+    [
+      x: x, 
+      y: y, 
+      __class_symbol__: :point,
+      __methods__: [
+        class: &get(&1, :__class_symbol__),
+        shift: fn 
+                 (this, xinc, yinc) -> new_point(get(this, :x) + xinc, get(this, :y) + yinc)
+               end,
+        x: &get(&1, :x),
+        y: &get(&1, :y),
+        add: fn (this, other) -> send_to(this, :shift, [send_to(other, :x), send_to(other, :y)]) end
+      ]
+    ]
+  end  
+#+END_SRC
+
+This is all quite horrible so far; presumably I'll be cleaning it up
+as I progress further in the book.

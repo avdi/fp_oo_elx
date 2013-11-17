@@ -21,7 +21,7 @@ defmodule ExercisesTest do
     # distinct
     assert(Enum.uniq([1,2,1,3,2]) == [1,2,3])
     # concat
-    assert(Stream.concat([u[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
+    assert(Stream.concat([[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
     # repeat
     xs = Stream.repeatedly(fn -> "x" end)
     assert(xs |> Enum.take(3) == ["x", "x", "x"])
@@ -59,4 +59,32 @@ defmodule ExercisesTest do
   test "1.18-7: tails2" do
     assert([1,2,3,4] |> tails2 == [[1,2,3,4], [2,3,4], [3,4], [4], []])
   end
+  defmodule TestObjects1 do
+    import FpOoElx.Exercises.Objects1
+    test "constructing a Point" do
+      p = new_point(3,5)
+      assert(x(p) == 3)
+      assert(y(p) == 5)
+    end
+  end
+  defmodule TestObjects2 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects2
+    test "constructing a Point" do
+      p = new_point(3,5)
+      assert(x(p) == 3)
+      assert(y(p) == 5)
+      assert(class_of(p) == :point)
+      p = shift(p, 7, -2)
+      assert(x(p) == 10)
+      assert(y(p) == 3)      
+    end
+    doctest FpOoElx.Exercises.Objects2
+  end  
+  defmodule TestObjects3 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects3
+    doctest FpOoElx.Exercises.Objects3
+  end  
+  doctest FpOoElx.Exercises
 end
