@@ -21,7 +21,7 @@ defmodule ExercisesTest do
     # distinct
     assert(Enum.uniq([1,2,1,3,2]) == [1,2,3])
     # concat
-    assert(Stream.concat([[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
+    assert(Stream.concat([u[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
     # repeat
     xs = Stream.repeatedly(fn -> "x" end)
     assert(xs |> Enum.take(3) == ["x", "x", "x"])
@@ -30,13 +30,33 @@ defmodule ExercisesTest do
     # there appears to be no interleave. There's Enum.zip, which only
     # zips two collections, and isn't lazy(?).
   
-   # drop
-   assert((1..4) |> Enum.drop(2) == [3,4])
+    # drop
+    assert((1..4) |> Enum.drop(2) == [3,4])
   
-   # drop-last
-   assert((1..4) |> Enum.slice(0..-2) == [1,2,3])
+    # drop-last
+    assert((1..4) |> Enum.slice(0..-2) == [1,2,3])
   
-   # flatten
-   assert(List.flatten([[1,2], [3,4]]) == [1,2,3,4])
+    # flatten
+    assert(List.flatten([[1,2], [3,4]]) == [1,2,3,4])
+  
+    # partition
+    assert((1..10) |> Enum.partition(&Integer.even?(&1)) == {[2,4,6,8,10], [1,3,5,7,9]})
+  
+    # every?
+    assert([2,4,6] |> Enum.all?(&Integer.even?(&1)) == true)
+    assert([1,4,6] |> Enum.all?(&Integer.even?(&1)) == false)
+  
+    # remove
+    assert((1..10) |> Stream.reject(&Integer.even?/1) |> Enum.take(5) == [1,3,5,7,9])
+  end
+  test "1.18-6: prefix-of?" do
+    assert(prefix_of?([1,2], [1,2,3,4]) == true)
+    assert(prefix_of?([2,3], [1,2,3,4]) == false)
+  end
+  test "1.18-7: tails" do
+    assert([1,2,3,4] |> tails == [[1,2,3,4], [2,3,4], [3,4], [4], []])
+  end
+  test "1.18-7: tails2" do
+    assert([1,2,3,4] |> tails2 == [[1,2,3,4], [2,3,4], [3,4], [4], []])
   end
 end

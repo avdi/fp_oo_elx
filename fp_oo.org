@@ -1,3 +1,5 @@
+#+TITLE: FPOO in Elixir
+#+OPTIONS: num:nil ^:nil toc:nil
 
 * Setup
 
@@ -132,8 +134,14 @@ Turns out, Elixir just punts it over to Erlang:
 
 I should have guessed this would be the case.
 
-** FPOO 1.18 Exercises in Elixir
-
+** FPOO Ch. 1 Exercises in Elixir                       :fpoo:elixir:clojure:
+   :PROPERTIES:
+   :ID:       o2b:e2da1415-8763-47d5-bc21-26a01da342db
+   :POST_DATE: [2013-11-19 Tue 09:00]
+   :POSTID:   7857
+   :BLOG:     virtuouscode
+   :CATEGORY: Elixir
+   :END:
 
 *** Exercise 3: add-squares
 
@@ -178,7 +186,9 @@ I realized halfway through writing this that it will lead to a compile
 error:
 
 #+BEGIN_EXAMPLE
-** (CompileError) lib/fp_oo_elx/exercises.ex:17: function add_squares/1 un
+
+
+(CompileError) lib/fp_oo_elx/exercises.ex:17: function add_squares/1 un
 defined
 #+END_EXAMPLE
 
@@ -229,7 +239,6 @@ lisp can yield the product of an arbitrary number of numbers:
 Instead, =Kernel.*= is a strictly binary operator. So I have to cheat
 and use =Enum.reduce=, which is a recursive function under the covers.
 
-
 *** Exercise 5: Various sequence functions
 
 I'm going to quickly run through these just so I know what the Elixir
@@ -245,7 +254,7 @@ potentially lazy sequences.
     # distinct
     assert(Enum.uniq([1,2,1,3,2]) == [1,2,3])
     # concat
-    assert(Stream.concat([[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
+    assert(Stream.concat([u[1,2], [3,4]]) |> Enum.take(4) == [1,2,3,4])
     # repeat
     xs = Stream.repeatedly(fn -> "x" end)
     assert(xs |> Enum.take(3) == ["x", "x", "x"])
@@ -253,15 +262,139 @@ potentially lazy sequences.
     # interleave
     # there appears to be no interleave. There's Enum.zip, which only
     # zips two collections, and isn't lazy(?).
-
-   # drop
-   assert((1..4) |> Enum.drop(2) == [3,4])
-
-   # drop-last
-   assert((1..4) |> Enum.slice(0..-2) == [1,2,3])
-
-   # flatten
-   assert(List.flatten([[1,2], [3,4]]) == [1,2,3,4])
+  
+    # drop
+    assert((1..4) |> Enum.drop(2) == [3,4])
+  
+    # drop-last
+    assert((1..4) |> Enum.slice(0..-2) == [1,2,3])
+  
+    # flatten
+    assert(List.flatten([[1,2], [3,4]]) == [1,2,3,4])
+  
+    # partition
+    assert((1..10) |> Enum.partition(&Integer.even?(&1)) == {[2,4,6,8,10], [1,3,5,7,9]})
+  
+    # every?
+    assert([2,4,6] |> Enum.all?(&Integer.even?(&1)) == true)
+    assert([1,4,6] |> Enum.all?(&Integer.even?(&1)) == false)
+  
+    # remove
+    assert((1..10) |> Stream.reject(&Integer.even?/1) |> Enum.take(5) == [1,3,5,7,9])
   end
 #+END_SRC
+
+These translations were delightfully easy to do; in almost every
+case, the Elixir version of the Clojure function either had a) the
+same name; or b) the name of the equivalent operation in Ruby
+(e.g. =remove= becomes =reject=).
+
+One thing that has stood out as I've worked through these is that the
+=Stream= module is a lot more limited than the =Enum= module. And
+from my brief experimentation, =Enum= functions are /not/ lazy. So,
+for instance, this expression will never return, even though we are
+only trying to take the first three unique items from the stream:
+
+#+BEGIN_SRC elixir
+  [1,2,3,4,5] |> Stream.cycle |> Enum.uniq |> Stream.take(3)
+#+END_SRC
+
+Evidently =Enum.uniq= tries to convert the stream into a fixed
+collection, rather than returning a filtered stream in this case.
+
+Since FPOO is already talking about laziness a lot (and all sequences
+seem to be treated as lazy and potentially infinite in Clojure), this
+may become a problem for later examples. More broadly, this doesn't
+bode well for writing truly generic functions that can process any
+kind of collection, including streams, in Elixir. However, Elixir is
+still very young, and I suspect that the =Stream= library will grow with
+time.
+
+
+
+
+*** Exercise 6: prefix-of?
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "1.18-6: prefix-of?" do
+    assert(prefix_of?([1,2], [1,2,3,4]) == true)
+    assert(prefix_of?([2,3], [1,2,3,4]) == false)
+  end
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  def prefix_of?(candidate, sequence) do
+    import Enum
+    size   = count(candidate)
+    subseq = sequence |> take(size)
+    candidate == subseq
+  end
+#+END_SRC
+
+*** Exercise 7: tails
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "1.18-7: tails" do
+    assert([1,2,3,4] |> tails == [[1,2,3,4], [2,3,4], [3,4], [4], []])
+  end
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir  
+  def tails([x|xs] = sequence), do: [sequence|tails(xs)]
+  def tails([]), do: [[]]
+#+END_SRC
+
+Marick says "my solution is very much in the functional style", and
+then goes on to offer some hints having to do with using Clojure's
+=range= and =map=. I'm going to go out on a limb and say that the
+solution I came up with first is /even more/ in the functional style,
+since it relies entirely on destructuring and recursion and doesn't
+require any library calls at all.
+
+Just for fun, here's a more direct translation of [[https://github.com/marick/fp-oo/blob/master/solutions/just-enough-clojure.clj#L113][Marick's solution]]:
+
+#+name: tests
+#+BEGIN_SRC elixir :exports none
+  test "1.18-7: tails2" do
+    assert([1,2,3,4] |> tails2 == [[1,2,3,4], [2,3,4], [3,4], [4], []])
+  end
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir  
+  def tails2(seq) do
+    import Enum
+    0..count(seq) |> map(&drop(seq, &1))
+  end
+#+END_SRC
+
+His solution is actually a bit more involved than this, because it
+involves mapping over /both/ the range =0..count(seq)= and a repeated
+list of the sequence itself. I'm guessing this is because he hasn't
+yet explicitly introduced lambdas apart from the top-level function
+definitions.
+
+#+BEGIN_SRC clj
+  (def tails
+    (fn [seq]
+      (map drop
+           (range (inc (count seq)))
+           (repeat (inc (count seq)) seq))))
+#+END_SRC
+
+If nothing else, this demonstrates that Clojure's =map= can map over
+multiple sequences in parallel, which is kinda cool.
+
+
+
+
+
+
+
+
+
 
