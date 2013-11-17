@@ -86,5 +86,24 @@ defmodule ExercisesTest do
     import FpOoElx.Exercises.Objects3
     doctest FpOoElx.Exercises.Objects3
   end  
+  defmodule TestObjects4 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects4
+    doctest FpOoElx.Exercises.Objects4
+    test "class-based object creation" do
+      import Dict
+      p = make(point, [23, 42])
+      assert(get(p, :x) == 23)
+      assert(get(p, :y) == 42)
+      p2 = send_to(p, :shift, [2, 3])
+      assert(get(p2, :x) == 25)
+      assert(get(p2, :y) == 45)
+    end
+    test "class and class name" do
+      p = make(point, [23, 42])
+      assert(send_to(p, :class) == point)
+      assert(send_to(p, :class_name) == :point)
+    end
+  end  
   doctest FpOoElx.Exercises
 end

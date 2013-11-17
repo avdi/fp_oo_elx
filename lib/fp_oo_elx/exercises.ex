@@ -135,4 +135,36 @@ defmodule FpOoElx.Exercises do
       ]
     end  
   end
+  defmodule Objects4 do
+    import Dict
+    def apply_message_to(class, object, message, args) do
+      method = class |> get(:__instance_methods__) |> get(message)
+      apply(method, [object|args])
+    end  
+    def make(class, args) do
+      allocated   = []
+      seeded      = allocated |> merge([__class_symbol__: get(class, :__own_symbol__)])
+      apply_message_to(class, seeded, :add_instance_values, args)
+    end
+    def send_to(object, message, args // []) do
+      class_name = object |> get(:__class_symbol__) 
+      class      = apply(__MODULE__, class_name, [])
+      apply_message_to(class, object, message, args)
+    end
+    def point() do 
+      [
+        __own_symbol__: :point,
+        __instance_methods__: [
+          class_name: &get(&1, :__class_symbol__),
+          class: fn (_this) -> point end,
+          add_instance_values: fn (this, x, y) ->
+                                    this |> merge([x: x, y: y])
+                               end,
+          shift: fn (this, xinc, yinc) -> 
+                      make(point, [get(this, :x) + xinc, get(this, :y) + yinc])
+                 end
+        ]
+      ]
+    end
+  end
 end

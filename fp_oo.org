@@ -655,3 +655,172 @@ This exercise re-adds =x=, =y=, and =add= methods.
 
 This is all quite horrible so far; presumably I'll be cleaning it up
 as I progress further in the book.
+
+* FPOO Chapter 5: Classes                                       :fpoo:elixir:
+
+  [boilerplate bypath="fp-oo"]
+
+#+name: tests
+#+BEGIN_SRC elixir :noweb strip-export :exports none
+  defmodule TestObjects4 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects4
+    doctest FpOoElx.Exercises.Objects4
+    <<object_tests4>>
+  end  
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir :exports none
+  defmodule Objects4 do
+    import Dict
+    <<objects4>>
+  end
+#+END_SRC
+
+So far, my tiny object system in Elixir has been stowing all methods
+directly in instances. Chapter 5 of FPOO directs me to move instance
+methods out into a "class" of some kind.
+
+First off, there's no more =new_point=. In its place, a simple keyword
+list defining attributes of the class. The instance variables are no
+longer hard-coded in the keyword list. Instead, there is a new
+=add_instance_values= callback that plays the role of an initializer
+method.
+
+#+BEGIN_SRC elixir
+  def point() do 
+    [
+      __own_symbol__: :point,
+      __instance_methods__: [
+        class: &get(&1, :__class_symbol__),
+        add_instance_values: fn (this, x, y) ->
+                                  this |> merge([x: x, y: y])
+                             end,
+        shift: fn (this, xinc, yinc) -> 
+                    make(point, [get(this, :x) + xinc, get(this, :y) + yinc])
+               end
+      ]
+    ]
+  end
+#+END_SRC
+
+Next up, a new =make= function that can use this style of class definition.
+
+#+BEGIN_SRC elixir
+  def make(class, args) do
+    allocated   = []
+    seeded      = allocated |> merge([__class_symbol__: get(class, :__own_symbol__)])
+    constructor = class |> get(:__instance_methods__) |> get(:add_instance_values)
+    apply(constructor, [seeded|args])
+  end
+#+END_SRC
+
+Now for message dispatch.
+
+#+BEGIN_SRC elixir
+  def send_to(object, message, args // []) do
+    class_name = object |> get(:__class_symbol__) 
+    class      = apply(__MODULE__, class_name, [])
+    method     = class |> get(:__instance_methods__) |> get(message)
+    apply(method, [object|args])
+  end
+#+END_SRC
+
+I gotta say, I kind of prefer Elixir pipelines for chaining keyword
+gets:
+
+#+BEGIN_SRC elixir
+class |> get(:__instance_methods__) |> get(message)
+#+END_SRC
+
+...to Clojure nested function calls:
+
+#+BEGIN_SRC clj
+(let [method (message (:__instance_methods__ class))])
+#+END_SRC
+
+Before I go any further, let's see if any of this is working.
+
+#+name: object_tests4
+#+BEGIN_SRC elixir
+  test "class-based object creation" do
+    import Dict
+    p = make(point, [23, 42])
+    assert(get(p, :x) == 23)
+    assert(get(p, :y) == 42)
+    p2 = send_to(p, :shift, [2, 3])
+    assert(get(p2, :x) == 25)
+    assert(get(p2, :y) == 45)
+  end
+#+END_SRC
+
+
+*** Exercise 1: apply-message-to
+
+A small refactoring to pull out this helper method:
+
+#+name: objects4
+#+BEGIN_SRC elixir
+  def apply_message_to(class, object, message, args) do
+    method = class |> get(:__instance_methods__) |> get(message)
+    apply(method, [object|args])
+  end  
+#+END_SRC
+
+Now the =make= and =send_to= functions can be refactored to use this new helper method.
+
+#+name: objects4
+#+BEGIN_SRC elixir
+  def make(class, args) do
+    allocated   = []
+    seeded      = allocated |> merge([__class_symbol__: get(class, :__own_symbol__)])
+    apply_message_to(class, seeded, :add_instance_values, args)
+  end
+#+END_SRC
+
+#+name: objects4
+#+BEGIN_SRC elixir
+  def send_to(object, message, args // []) do
+    class_name = object |> get(:__class_symbol__) 
+    class      = apply(__MODULE__, class_name, [])
+    apply_message_to(class, object, message, args)
+  end
+#+END_SRC
+
+
+*** Exercise 2: class and class-name
+
+The behavior I want:
+
+#+name: object_tests4
+#+BEGIN_SRC elixir
+  test "class and class name" do
+    p = make(point, [23, 42])
+    assert(send_to(p, :class) == point)
+    assert(send_to(p, :class_name) == :point)
+  end
+#+END_SRC
+
+This necessitates a change to the class definition:
+
+#+name: objects4
+#+BEGIN_SRC elixir
+  def point() do 
+    [
+      __own_symbol__: :point,
+      __instance_methods__: [
+        class_name: &get(&1, :__class_symbol__),
+        class: fn (_this) -> point end,
+        add_instance_values: fn (this, x, y) ->
+                                  this |> merge([x: x, y: y])
+                             end,
+        shift: fn (this, xinc, yinc) -> 
+                    make(point, [get(this, :x) + xinc, get(this, :y) + yinc])
+               end
+      ]
+    ]
+  end
+#+END_SRC
+
+
