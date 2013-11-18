@@ -167,4 +167,93 @@ defmodule FpOoElx.Exercises do
       ]
     end
   end
+  defmodule Objects5 do
+    import Dict
+    def make(class, args) do
+      allocated   = []
+      seeded      = allocated |> merge([__class_symbol__: get(class, :__own_symbol__)])
+      apply_message_to(class, seeded, :add_instance_values, args)
+    end
+    def send_to(object, message, args // []) do
+      class_name = object |> get(:__class_symbol__) 
+      class      = apply(__MODULE__, class_name, [])
+      apply_message_to(class, object, message, args)
+    end
+    def point() do 
+      [
+        __own_symbol__: :point,
+        __superclass_symbol__: :anything,
+        __instance_methods__: [
+          class: fn (_this) -> point end,
+          add_instance_values: fn (this, x, y) ->
+                                    this |> merge([x: x, y: y])
+                               end,
+          shift: fn (this, xinc, yinc) -> 
+                      make(point, [get(this, :x) + xinc, get(this, :y) + yinc])
+                 end
+        ]
+      ]
+    end
+    def anything do
+      [
+        __own_symbol__: :anything,
+        __instance_methods__: [
+          add_instance_values: fn(this) -> this end,
+          class_name: &get(&1, :__class_symbol__),
+          class: fn 
+            (this) -> apply(__MODULE__, get(this, :__class_symbol__), [])
+          end
+        ] 
+      ]
+    end
+    def class_instance_methods(class_symbol) do
+      apply(__MODULE__, class_symbol, []) |> get(:__instance_methods__)
+    end
+    def class_symbol_above(class_symbol) do
+      apply(__MODULE__, class_symbol, []) |> get(:__superclass_symbol__)
+    end
+    @doc """
+      iex> lineage(:point)
+      [:anything, :point]
+    """
+    def lineage(nil), do: []  
+    def lineage(class_symbol) do
+      [class_symbol|class_symbol |> class_symbol_above |> lineage] |> Enum.reverse
+    end
+    defp apply_message_to(class, object, message, args) do
+      class |> method_cache |> get(message) |> apply([object|args])
+    end  
+    def method_cache(class) do
+      import Enum
+      class 
+      |> get(:__own_symbol__)
+      |> lineage
+      |> map(&class_instance_methods/1)
+      |> reduce(&Dict.merge(&2, &1))
+    end
+  end
+  @doc """
+    iex> factorial(5)
+    120
+  """
+  def factorial(n) do
+    case n do
+      0 -> 1
+      1 -> 1
+      _ -> n*factorial(n-1)
+    end
+  end
+  @doc """
+    iex> factorial_acc(5)
+    120
+    iex> factorial_acc(0)
+    1
+  """
+  def factorial_acc(n, acc // 1) do
+    if n == 0 || n == 1 do
+      acc
+    else
+      factorial_acc(n-1, n*acc)
+    end
+  end
 end

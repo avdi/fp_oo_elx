@@ -823,4 +823,209 @@ This necessitates a change to the class definition:
   end
 #+END_SRC
 
+* FPOO Chapter 6: Inheritance
 
+#+name: tests
+#+BEGIN_SRC elixir :noweb strip-export :exports none
+  defmodule TestObjects5 do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Objects5
+    doctest FpOoElx.Exercises.Objects5
+    <<object_tests4>>
+    <<object_tests5>>
+  end  
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir :exports none
+  defmodule Objects5 do
+    import Dict
+    <<objects5>>
+  end
+#+END_SRC
+
+#+BEGIN_SRC elixir
+  defp apply_message_to(class, object, message, args) do
+    method = class |> get(:__instance_methods__) |> get(message)
+    apply(method, [object|args])
+  end  
+#+END_SRC
+
+#+name: objects5
+#+BEGIN_SRC elixir :exports none
+  def make(class, args) do
+    allocated   = []
+    seeded      = allocated |> merge([__class_symbol__: get(class, :__own_symbol__)])
+    apply_message_to(class, seeded, :add_instance_values, args)
+  end
+#+END_SRC
+
+#+name: objects5
+#+BEGIN_SRC elixir :exports none
+  def send_to(object, message, args // []) do
+    class_name = object |> get(:__class_symbol__) 
+    class      = apply(__MODULE__, class_name, [])
+    apply_message_to(class, object, message, args)
+  end
+#+END_SRC
+
+Inheritance means knowing who your parent is.
+
+#+name: objects5
+#+BEGIN_SRC elixir
+  def point() do 
+    [
+      __own_symbol__: :point,
+      __superclass_symbol__: :anything,
+      __instance_methods__: [
+        class: fn (_this) -> point end,
+        add_instance_values: fn (this, x, y) ->
+                                  this |> merge([x: x, y: y])
+                             end,
+        shift: fn (this, xinc, yinc) -> 
+                    make(point, [get(this, :x) + xinc, get(this, :y) + yinc])
+               end
+      ]
+    ]
+  end
+#+END_SRC
+
+Now to define the =anything= class, referenced above by the keyword
+=:__superclass_symbol__=.
+
+#+name: objects5
+#+BEGIN_SRC elixir
+  def anything do
+    [
+      __own_symbol__: :anything,
+      __instance_methods__: [
+        add_instance_values: fn(this) -> this end,
+        class_name: &get(&1, :__class_symbol__),
+        class: fn 
+          (this) -> apply(__MODULE__, get(this, :__class_symbol__), [])
+        end
+      ] 
+    ]
+  end
+#+END_SRC
+
+And now the real magic: method lookup!
+
+The top-level method lookup function:
+
+#+BEGIN_SRC elixir
+  def method_cache(class) do
+    import Enum
+    class_symbol = class |> get(:__own_symbol__)
+    method_maps  = lineage(class_symbol) |> map(&class_instance_methods/1)
+    method_maps |> reduce(&Dict.merge(&2, &1))
+  end
+#+END_SRC
+
+Notice that I've had to reverse the order of the arguments to
+=Dict.merge/2=. This is because =reduce= passes arguments in the order
+=next_item, accumulator=, but I want methods from each successive
+class in the lineage to override methods in earlier, less-specialized
+classes.
+
+A helper to get the instance methods defined for a class:
+
+#+name: objects5
+#+BEGIN_SRC elixir
+def class_instance_methods(class_symbol) do
+  apply(__MODULE__, class_symbol, []) |> get(:__instance_methods__)
+end
+#+END_SRC
+
+Another helper to get the parent class symbol:
+
+#+name: objects5
+#+BEGIN_SRC elixir
+def class_symbol_above(class_symbol) do
+  apply(__MODULE__, class_symbol, []) |> get(:__superclass_symbol__)
+end
+#+END_SRC
+
+...and a function to get the ancestry chain of a given class:
+
+#+name: objects5
+#+BEGIN_SRC elixir
+  @doc """
+    iex> lineage(:point)
+    [:anything, :point]
+  """
+  def lineage(nil), do: []  
+  def lineage(class_symbol) do
+    [class_symbol|class_symbol |> class_symbol_above |> lineage] |> Enum.reverse
+  end
+#+END_SRC
+
+Now to update =apply_message_to= to use this new code:
+
+#+name: objects5
+#+BEGIN_SRC elixir
+  defp apply_message_to(class, object, message, args) do
+    class |> method_cache |> get(message) |> apply([object|args])
+  end  
+#+END_SRC
+
+Before I go any further, I feel a compulsion to try and golf down the
+=method_cache= function.
+
+#+name: objects5
+#+BEGIN_SRC elixir
+  def method_cache(class) do
+    import Enum
+    class 
+    |> get(:__own_symbol__)
+    |> lineage
+    |> map(&class_instance_methods/1)
+    |> reduce(&Dict.merge(&2, &1))
+  end
+#+END_SRC
+
+Ah, lovely.
+
+*** Exercise 1: factorial
+
+Just for fun, I'll do this one in a single clause instead of multiple
+pattern-matching clauses.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+    iex> factorial(5)
+    120
+  """
+  def factorial(n) do
+    case n do
+      0 -> 1
+      1 -> 1
+      _ -> n*factorial(n-1)
+    end
+  end
+#+END_SRC
+
+*** Exercise 2: factorial, accumulator style
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+    iex> factorial_acc(5)
+    120
+    iex> factorial_acc(0)
+    1
+  """
+  def factorial_acc(n, acc // 1) do
+    if n == 0 || n == 1 do
+      acc
+    else
+      factorial_acc(n-1, n*acc)
+    end
+  end
+#+END_SRC
+
+
+*** Exercises 3-6: implementing reduce
+
+I'm going to skip these for now.
