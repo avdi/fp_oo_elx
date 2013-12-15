@@ -1276,24 +1276,13 @@ Course type, and instead have it show up when importing the
 
 This has been instructive, but time-consuming. Enough for now.
 
-
-
-
-
-
-
-
-
-
-
-
 * FPOO Ch. 9: Functions That Make Functions
 
   [boilerplate bypath="fp-oo"]
 
-As far as I know Elixir does not have a library of foundational
-higher-order functions (like =lift= or =partial=), unlike
-Clojoure. So I'll have to build them myself.
+Unlike Clojure, as far as I know Elixir does not have a library of
+foundational higher-order functions such as like =lift= or
+=complement=. So I'll have to build them myself.
 
 Before I do anything else, I need a helper function for adapting the
 arity of anonymous functions. This is because Elixir has no support
@@ -1311,11 +1300,11 @@ arguments, and one that takes a function of single argument list.
 So instead I define =adapt_arity=, which takes a function of one
 argument and an arity, and returns a function of =arity= arguments.
 
-I spent a few days trying to come up with a clean macro version of
-this, but I completely struck out. The problem I kept running into is
-that the macro is evaluated at compile time, but the arity number is
-only discovered at runtime. Eventually I reluctantly settled on using
-=Code.eval_string= instead.
+I spent a few days off and on trying to come up with a clean macro
+version of this, but I completely struck out. The problem I kept
+running into is that the macro is evaluated at compile time, but the
+arity number is only discovered at runtime. Eventually I reluctantly
+settled on using =Code.eval_string= instead.
 
 #+name: exercises
 #+BEGIN_SRC elixir
@@ -1341,13 +1330,19 @@ only discovered at runtime. Eventually I reluctantly settled on using
   end
 #+END_SRC
 
+(I even tried a version that eval-ed code at compile time to generate
+256 different versions of =adapt_arity=, but then I ran into an issue
+where I couldn't get the =Code.eval_*= functions to eval in the
+context of a given module. Instead they were evaluating in the
+global(?)  context, and functions can't be defined outside a module.)
+
 Given a call like this:
 
 #+BEGIN_SRC elixir
   adapt_arity(myfun, 3)
 #+END_SRC
 
-The following anonymous function will be returned:
+The following anonymous function will be returned from =adapt_arity=:
 
 #+BEGIN_SRC elixir
   fn(arg0, arg1, arg2) ->
@@ -1374,6 +1369,11 @@ anonymous function.
 
 The magic number 255 corresponds to [[http://www.erlang.org/doc/efficiency_guide/advanced.html][the upper bound of arguments an
 Erlang function can take]].
+
+So far as I can tell there's no built-in way to check the arity of a
+function. This was the best I could come up with. I suspect this could
+be made more efficient by unrolling it into a pattern-matching
+version, if someone really wanted to.
 
 Now on to the various function adapters. First up, =partial=.
 
@@ -1481,6 +1481,12 @@ since I've got a shiny new =partial= function, I'll use it.
   end
 #+END_SRC
 
+This might draw the question "if the capture operator would have
+worked just as well, what's the point of =partial=?" The answer is
+genericity. =partial= can be used within other functions where the
+number of partial arguments to be supplied isn't known until
+runtime. That's not possible with captures.
+
 Exercise 2 is to write a =separate= function using =juxt=.
 
 #+name: exercises
@@ -1493,3 +1499,55 @@ Exercise 2 is to write a =separate= function using =juxt=.
     juxt([&Enum.filter(&1, pred), &Enum.reject(&1, pred)]).(list)
   end
 #+END_SRC
+
+Exercise 6 is to write =always=, a function that generates functions
+that always return a constant value regardless of arguments. As usual,
+Elixir complicates things by requiring an explicit arity.
+
+#+name: exercise
+#+BEGIN_SRC elixir
+  @doc """
+      iex> eight = always(8, 3)
+      iex> eight.(1,2,3)
+      8
+  """
+  def always(value, arity) do
+    fn(_) -> value end |> adapt_arity(arity)
+  end
+#+END_SRC
+
+Exercises 7 and 8 deal with validating ISBNs.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> check_sum([4, 8, 9, 3, 2])
+      69
+  """
+  def check_sum(digits) do
+    import Enum
+    digits 
+    |> zip(1..length(digits))
+    |> reduce(0, fn({digit, index}, sum) ->
+                     sum + (digit * index)
+                 end)
+  end
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> isbn?("0131774115")
+      true
+      iex> isbn?("0977716614")
+      false
+      iex> isbn?("1934356190")
+      true
+  """
+  def isbn?(num) do
+    digits = String.graphemes(num) |> Enum.map(&binary_to_integer/1)
+    rem(check_sum(digits), 11) == 0
+  end
+#+END_SRC
+
+And that's enough for now.

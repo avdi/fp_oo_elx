@@ -385,4 +385,28 @@ defmodule FpOoElx.Exercises do
   def separate(list, pred) do
     juxt([&Enum.filter(&1, pred), &Enum.reject(&1, pred)]).(list)
   end
+  @doc """
+      iex> check_sum([4, 8, 9, 3, 2])
+      69
+  """
+  def check_sum(digits) do
+    import Enum
+    digits 
+    |> zip(1..length(digits))
+    |> reduce(0, fn({digit, index}, sum) ->
+                     sum + (digit * index)
+                 end)
+  end
+  @doc """
+      iex> isbn?("0131774115")
+      true
+      iex> isbn?("0977716614")
+      false
+      iex> isbn?("1934356190")
+      true
+  """
+  def isbn?(num) do
+    digits = String.graphemes(num) |> Enum.map(&binary_to_integer/1)
+    rem(check_sum(digits), 11) == 0
+  end
 end
