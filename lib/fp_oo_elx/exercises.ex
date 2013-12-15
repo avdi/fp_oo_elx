@@ -256,4 +256,133 @@ defmodule FpOoElx.Exercises do
       factorial_acc(n-1, n*acc)
     end
   end
+  defmodule Scheduling do
+    import Enum
+    import Set
+    import Dict
+    defrecord Course, course_name: nil, morning?: true, limit: Infinity, registered: 0
+    def answer_annotations(courses, registrants_courses) do
+      checking_set = registrants_courses
+      courses |> map fn(course)->
+        course_attrs = course.to_keywords
+        course_attrs |> merge(
+          spaces_left: course.limit - course.registered,
+          already_in?: checking_set |> Enum.member?(course.course_name))
+      end
+    end                                                                                
+    def domain_annotations(courses) do
+      courses |> map fn(course)->
+        course |> merge(
+          empty?: course[:registered] == 0,
+          full?:  course[:spaces_left] == 0)
+      end
+    end                                                                                
+    def note_unavailability(courses, instructor_count) do
+      out_of_instructors? = 
+        instructor_count ==
+        (courses |> filter(&not(empty?(&1))) |> count)
+      courses |> map fn(course) ->
+        course |> merge(
+          unavailable?: course[:full?] || (out_of_instructors? && course[:empty?]))
+      end
+    end
+    def annotate(courses, registrants_courses, instructor_count) do
+      courses |> answer_annotations(registrants_courses)
+              |> domain_annotations
+              |> note_unavailability(instructor_count)
+    end    
+  end
+  @doc """
+     iex> myfun = fn(args) -> args end
+     iex> myfun3 = adapt_arity(myfun, 3)
+     iex> myfun3.(:a, :b, :c)
+     [:a, :b, :c]
+     iex> myfun2 = adapt_arity(myfun, 2)
+     iex> myfun2.(:x, :y)
+     [:x, :y]
+  """
+  def adapt_arity(fun, arity) do
+    arglist = (0..arity - 1) |> Enum.map(fn(n) -> "arg#{n}" end) |> Enum.join(", ")
+    code = """
+      fn(#{arglist}) ->
+        args = [#{arglist}]
+        fun.(args)
+      end
+    """
+    {value, _binding} = Code.eval_string(code, binding, __ENV__)
+    value
+  end
+  @doc """
+      iex> arity(&Kernel.even?/1)
+      1
+      iex> arity(&Kernel.+/2)
+      2
+  """
+  def arity(fun) do
+    (0..255) |> Enum.find fn(arity) -> is_function(fun, arity) end
+  end
+  @doc """
+      iex> add2 = partial(&Kernel.+/2, [2])
+      iex> add2.(4)
+      6
+  """
+  def partial(fun, partial_args) do
+    arity = arity(fun) - length(partial_args)
+    fn(args) -> apply(fun, partial_args ++ args) end |> adapt_arity(arity)
+  end
+  @doc """
+      iex> not_even = complement(&Integer.even?/1)
+      iex> not_even.(2)
+      false
+      iex> not_even.(3)
+      true
+  """
+  def complement(fun) do
+    fn(args) -> !apply(fun, args) end |> adapt_arity(arity(fun))
+  end
+  @doc """
+      iex> negate = lift(&Kernel.-/1)
+      iex> neg_add = negate.(&Kernel.+/2)
+      iex> neg_add.(2, 2)
+      -4
+  """
+  def lift(modifier) do
+    fn(base_function) ->      
+        fn(args) -> 
+            result = apply(base_function, args)
+            modifier.(result)
+        end |> adapt_arity(arity(base_function))
+    end
+  end
+  @doc """
+      iex> plus = &Kernel.+/2
+      iex> add = &Enum.reduce(&1, plus)
+      iex> comp([&Kernel.to_string/1, add]).([8, 8, 8])
+      "24"
+  """
+  def comp(funs) do
+    rfuns = funs |> Enum.reverse
+    arity = arity(funs |> Enum.first)
+    rfuns |> Enum.reduce fn(outer, inner) ->
+                             fn(args) ->
+                                 outer.(apply(inner, args))
+                             end |> adapt_arity(arity(inner))
+                         end
+  end  
+  @doc """
+      iex> juxt([&Enum.empty?/1, &Enum.reverse/1, &Enum.count/1]).([:a, :b, :c])
+      [false, [:c, :b, :a], 3]
+  """
+  def juxt(funs) do
+    fn(arg) ->
+        funs |> Enum.map(fn(fun) -> fun.(arg) end)
+    end
+  end  
+  @doc """
+      iex> separate([0,1,2,3], &Integer.odd?/1)
+      [[1,3], [0,2]]
+  """
+  def separate(list, pred) do
+    juxt([&Enum.filter(&1, pred), &Enum.reject(&1, pred)]).(list)
+  end
 end

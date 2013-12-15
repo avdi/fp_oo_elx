@@ -125,5 +125,65 @@ defmodule ExercisesTest do
     end
     
   end  
+  defmodule SchedulingTests do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Scheduling
+    doctest FpOoElx.Exercises.Scheduling
+    test "Course" do
+      alias FpOoElx.Exercises.Scheduling.Course
+      c = Course[course_name: "Zigging", morning?: true, limit: 5, registered: 3]
+      assert c.course_name == "Zigging"
+      
+      # Or the more functional style attribute access
+      import Course
+      assert morning?(c) == true
+    
+      assert c.to_keywords ==
+        List.keysort([course_name: "Zigging", morning?: true, limit: 5, registered: 3], 0)
+    
+      c2 = c.limit(10)
+      assert c2.limit == 10
+    end
+    test "answer_annotations" do
+      alias FpOoElx.Exercises.Scheduling.Course
+      import Enum
+      courses = [Course[course_name: "zigging", limit: 4, registered: 3],
+                 Course[course_name: "zagging", limit: 1, registered: 1]]
+      annotated = courses |> answer_annotations(["zagging"])
+      assert at(annotated, 0)[:already_in?] == false
+      assert at(annotated, 0)[:spaces_left] == 1
+      assert at(annotated, 1)[:already_in?] == true
+      assert at(annotated, 1)[:spaces_left] == 0
+    end
+    test "domain_annotations" do
+      import Enum
+      annotated = [[registered: 1, spaces_left: 1],
+                   [registered: 0, spaces_left: 1],
+                   [registered: 1, spaces_left: 0]] |> domain_annotations
+      assert at(annotated, 0)[:full?] == false
+      assert at(annotated, 0)[:empty?] == false
+      assert at(annotated, 1)[:full?] == false
+      assert at(annotated, 1)[:empty?] == true
+      assert at(annotated, 2)[:full?] == true
+      assert at(annotated, 2)[:empty?] == false
+    end
+    test "annotate" do
+      import Enum
+      alias FpOoElx.Exercises.Scheduling.Course
+      courses = [
+        Course[course_name: "zigging", limit: 4, registered: 3],
+        Course[course_name: "zagging", limit: 1, registered: 1]
+      ]
+      registrants_courses = ["zigging"]
+      instructor_count = 2
+      annotated = courses |> annotate(registrants_courses, instructor_count)
+      assert at(annotated, 0)[:unavailable?] == false
+      assert at(annotated, 1)[:unavailable?] == true
+    end
+  end  
+  test "add 2 to each element, using a point-free style" do
+    result = [1,2,3] |> Enum.map(partial(&Kernel.+/2, [2]))
+    assert result == [3,4,5]
+  end
   doctest FpOoElx.Exercises
 end

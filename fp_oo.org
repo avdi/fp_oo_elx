@@ -401,12 +401,23 @@ definitions.
 If nothing else, this demonstrates that Clojure's =map= can map over
 multiple sequences in parallel, which is kinda cool.
 
-
-
-
 * FPOO Chapters 2 & 3: Basic Objects in Elixir                  :fpoo:elixir:
+  :PROPERTIES:
+  :ID:       o2b:365e0b20-d58c-4634-baa8-16bd218567a8
+  :POST_DATE: [2013-11-25 Mon 09:40]
+  :POSTID:   7884
+  :BLOG:     virtuouscode
+  :CATEGORY: Elixir
+  :END:
 
 [boilerplate bypath="fp-oo"]
+
+I feel like I should start with a disclaimer: this post is not
+advocating building an OO system on top of an FP language. And anyway,
+the Elixir/Erlang "process" model is arguably a very OO system right
+out of the box. But this series is about working through the FPOO
+book, and the exercise that's up next is to implement a basic OO
+system on top of an FP language, so that's what I'm going to do.
 
 First version, without knowledge of class:
 
@@ -419,6 +430,11 @@ First version, without knowledge of class:
     def y(point), do: get(point, :y)
   end
 #+END_SRC
+
+(Note: when I wrote this I either didn't know, or had forgotten, that
+subscript/square-bracket access was available in Elixir. So you'll see
+a lot of =get(point, :x)= when I probably could have written
+=point[:x]=.)
 
 #+name: tests
 #+BEGIN_SRC elixir
@@ -453,7 +469,7 @@ Second version, with knowledge of class and =shift= method:
 #+END_SRC
 
 #+name: exercises
-#+BEGIN_SRC elixir
+#+BEGIN_SRC elixir :noweb strip-export
   defmodule Objects2 do
     import Dict
     def new_point(x, y), do: [x: x, y: y, __class_symbol__: :point]
@@ -543,14 +559,21 @@ wouldn't need a macro.
 #+END_SRC
 
 Note the use of =delegate_locals_to: __MODULE__= to enable the
-=eval_quoted= to find methods in the current module.
+=eval_quoted= to find methods in the current module. I'm still
+getting the hang of eval-ing in Elixir; there may be a better way to
+do this.
 
 The next three exercises involve comparing triangles and I just can't
 get excited about that, so I'm gonna stop here.
 
-
-
-* FPOO Chapter 4: Encapsulating methods in the constructor
+* FPOO Chapter 4: Encapsulating methods in the constructor      :fpoo:elixir:
+  :PROPERTIES:
+  :CATEGORY: Elixir
+  :ID:       o2b:7896008a-d63d-40e0-981f-9e61fd264b09
+  :POST_DATE: [2013-11-27 Wed 15:39]
+  :POSTID:   7886
+  :BLOG:     virtuouscode
+  :END:
 
 [boilerplate bypath="fp-oo"]
 
@@ -657,6 +680,13 @@ This is all quite horrible so far; presumably I'll be cleaning it up
 as I progress further in the book.
 
 * FPOO Chapter 5: Classes                                       :fpoo:elixir:
+  :PROPERTIES:
+  :CATEGORY: Elixir
+  :ID:       o2b:3505a5d0-620f-41ac-949a-9238044f7722
+  :POST_DATE: [2013-12-04 Wed 13:25]
+  :POSTID:   7895
+  :BLOG:     virtuouscode
+  :END:
 
   [boilerplate bypath="fp-oo"]
 
@@ -739,6 +769,9 @@ class |> get(:__instance_methods__) |> get(message)
 #+BEGIN_SRC clj
 (let [method (message (:__instance_methods__ class))])
 #+END_SRC
+
+(EDIT: I had either forgotten or didn't yet know about subscript
+(=[]=) access when this was written)
 
 Before I go any further, let's see if any of this is working.
 
@@ -824,6 +857,14 @@ This necessitates a change to the class definition:
 #+END_SRC
 
 * FPOO Chapter 6: Inheritance
+  :PROPERTIES:
+  :CATEGORY: Elixir
+  :ID:       o2b:4da4c3d1-613a-4f9d-9cd4-af7f85bff1bd
+  :POST_DATE: [2013-12-09 Mon 12:18]
+  :POSTID:   7897
+  :BLOG:     virtuouscode
+  :END:
+  [boilerplate bypath="fp-oo"]
 
 #+name: tests
 #+BEGIN_SRC elixir :noweb strip-export :exports none
@@ -844,7 +885,7 @@ This necessitates a change to the class definition:
   end
 #+END_SRC
 
-#+BEGIN_SRC elixir
+#+BEGIN_SRC elixir :exports none
   defp apply_message_to(class, object, message, args) do
     method = class |> get(:__instance_methods__) |> get(message)
     apply(method, [object|args])
@@ -988,8 +1029,8 @@ Ah, lovely.
 
 *** Exercise 1: factorial
 
-Just for fun, I'll do this one in a single clause instead of multiple
-pattern-matching clauses.
+Just for fun, I'll do this one in a single definition instead of multiple
+pattern-matching definitions.
 
 #+name: exercises
 #+BEGIN_SRC elixir
@@ -1029,3 +1070,426 @@ pattern-matching clauses.
 *** Exercises 3-6: implementing reduce
 
 I'm going to skip these for now.
+
+
+*** Notes
+
+One of the things I like about this section, and this book, is that
+Marick explicitly identifies functional patterns, such as the two
+styles of recursive method definition. He even shows "ideal forms" of
+the two patterns, with placeholders for the parts that change.
+
+I've definitely seen these styles in use, but hadn't seen them clearly
+elucidated as patterns before. If nothing else, this book should put
+the rest the notion, occasionally advanced, that patterns are somehow
+not applicable to functional programming. Every community develops
+patterns; being able to identify them and point out which parts are
+consistent and which parts change with the application is one of the
+marks of a good software writer.
+
+* FPOO Chapter 7: Programming with Dataflow                     :fpoo:elixir:
+  :PROPERTIES:
+  :CATEGORY: Elixir
+  :ID:       o2b:61662969-535e-45ff-8bd7-2fe66f856016
+  :POST_DATE: [2013-12-12 Thu 11:28]
+  :POSTID:   7902
+  :BLOG:     virtuouscode
+  :END:
+
+  [boilerplate bypath="fp-oo"]
+
+#+name: tests
+#+BEGIN_SRC elixir :noweb strip-export :exports none
+  defmodule SchedulingTests do
+    use ExUnit.Case
+    import FpOoElx.Exercises.Scheduling
+    doctest FpOoElx.Exercises.Scheduling
+    <<scheduling_tests>>
+  end  
+#+END_SRC
+
+#+name: exercises
+#+BEGIN_SRC elixir :exports none
+  defmodule Scheduling do
+    import Enum
+    import Set
+    import Dict
+    <<scheduling_exercises>>
+  end
+#+END_SRC
+
+This is where FPOO starts to get interesting. I have to say I find the
+choice of the term "dataflow" confusing due to its [[http://en.wikipedia.org/wiki/Dataflow_programming][other associations]]
+in programming. But this section introduces a style of working with
+data--first annotating it, then filtering it--which I've never really
+given a lot of thought to.
+
+I'm going to start out by defining a record type for courses. Marick
+doesn't do this for his example, but Clojure has more shortcuts for
+working with raw maps (e.g. being able to use a key as a function of
+the map). I'm curious if this kind of dataflow programming is easy to
+adapt to records.
+
+#+name: scheduling_exercises
+#+BEGIN_SRC elixir
+  defrecord Course, course_name: nil, morning?: true, limit: Infinity, registered: 0
+#+END_SRC
+
+Let me just make sure I know how to use records.
+
+#+name: scheduling_tests
+#+BEGIN_SRC elixir
+  test "Course" do
+    alias FpOoElx.Exercises.Scheduling.Course
+    c = Course[course_name: "Zigging", morning?: true, limit: 5, registered: 3]
+    assert c.course_name == "Zigging"
+    
+    # Or the more functional style attribute access
+    import Course
+    assert morning?(c) == true
+
+    assert c.to_keywords ==
+      List.keysort([course_name: "Zigging", morning?: true, limit: 5, registered: 3], 0)
+
+    c2 = c.limit(10)
+    assert c2.limit == 10
+  end
+#+END_SRC
+
+OK, now on to the first metadata-annotating function.
+
+#+name: scheduling_exercises
+#+BEGIN_SRC elixir
+  def answer_annotations(courses, registrants_courses) do
+    checking_set = registrants_courses
+    courses |> map fn(course)->
+      course_attrs = course.to_keywords
+      course_attrs |> merge(
+        spaces_left: course.limit - course.registered,
+        already_in?: checking_set |> Enum.member?(course.course_name))
+    end
+  end                                                                                
+#+END_SRC
+
+#+name: scheduling_tests
+#+BEGIN_SRC elixir
+  test "answer_annotations" do
+    alias FpOoElx.Exercises.Scheduling.Course
+    import Enum
+    courses = [Course[course_name: "zigging", limit: 4, registered: 3],
+               Course[course_name: "zagging", limit: 1, registered: 1]]
+    annotated = courses |> answer_annotations(["zagging"])
+    assert at(annotated, 0)[:already_in?] == false
+    assert at(annotated, 0)[:spaces_left] == 1
+    assert at(annotated, 1)[:already_in?] == true
+    assert at(annotated, 1)[:spaces_left] == 0
+  end
+#+END_SRC
+
+And now the second. This one differs from the first in that it
+assumes it will get keyword lists instead of a records. This is a
+strike against using records in the first place, since now these two
+functions differ in this seemingly arbitrary way.
+
+#+name: scheduling_exercises
+#+BEGIN_SRC elixir
+  def domain_annotations(courses) do
+    courses |> map fn(course)->
+      course |> merge(
+        empty?: course[:registered] == 0,
+        full?:  course[:spaces_left] == 0)
+    end
+  end                                                                                
+#+END_SRC
+
+#+name: scheduling_tests
+#+BEGIN_SRC elixir
+  test "domain_annotations" do
+    import Enum
+    annotated = [[registered: 1, spaces_left: 1],
+                 [registered: 0, spaces_left: 1],
+                 [registered: 1, spaces_left: 0]] |> domain_annotations
+    assert at(annotated, 0)[:full?] == false
+    assert at(annotated, 0)[:empty?] == false
+    assert at(annotated, 1)[:full?] == false
+    assert at(annotated, 1)[:empty?] == true
+    assert at(annotated, 2)[:full?] == true
+    assert at(annotated, 2)[:empty?] == false
+  end
+#+END_SRC
+
+And now the final annotation function, which adds notes on course
+availability.
+
+#+name: scheduling_exercises
+#+BEGIN_SRC elixir
+  def note_unavailability(courses, instructor_count) do
+    out_of_instructors? = 
+      instructor_count ==
+      (courses |> filter(&not(empty?(&1))) |> count)
+    courses |> map fn(course) ->
+      course |> merge(
+        unavailable?: course[:full?] || (out_of_instructors? && course[:empty?]))
+    end
+  end
+#+END_SRC
+
+I'm pleasantly surprised I can use the capture operator for the
+nested =&not(empty?(&1))= expression.
+
+Finally, the payoff. At this point the book introduces the arrow
+(=->=) operator for threading functions together, but of course this
+is Elixir so we do that all the time.
+
+#+name: scheduling_exercises
+#+BEGIN_SRC elixir
+  def annotate(courses, registrants_courses, instructor_count) do
+    courses |> answer_annotations(registrants_courses)
+            |> domain_annotations
+            |> note_unavailability(instructor_count)
+  end    
+#+END_SRC
+
+I'm tired of translating now, but I'm going to do one quick check
+that this works as expected.
+
+#+name: scheduling_tests
+#+BEGIN_SRC elixir
+  test "annotate" do
+    import Enum
+    alias FpOoElx.Exercises.Scheduling.Course
+    courses = [
+      Course[course_name: "zigging", limit: 4, registered: 3],
+      Course[course_name: "zagging", limit: 1, registered: 1]
+    ]
+    registrants_courses = ["zigging"]
+    instructor_count = 2
+    annotated = courses |> annotate(registrants_courses, instructor_count)
+    assert at(annotated, 0)[:unavailable?] == false
+    assert at(annotated, 1)[:unavailable?] == true
+  end
+#+END_SRC
+
+(I'd really like to find a way to avoid having to explicitly alias the
+Course type, and instead have it show up when importing the
+=Scheduling= module it lives in.)
+
+This has been instructive, but time-consuming. Enough for now.
+
+
+
+
+
+
+
+
+
+
+
+
+* FPOO Ch. 9: Functions That Make Functions
+
+  [boilerplate bypath="fp-oo"]
+
+As far as I know Elixir does not have a library of foundational
+higher-order functions (like =lift= or =partial=), unlike
+Clojoure. So I'll have to build them myself.
+
+Before I do anything else, I need a helper function for adapting the
+arity of anonymous functions. This is because Elixir has no support
+for variable-arity functions. As a result, the only workable way I can
+find to build generic functions involves always returning a function
+of a single argument, where the single argument is a list of the
+actual arguments. Which can then be used with =apply=, etc.
+
+This works, but it's pretty unpleasant to have to call all generated
+functions as, e.g. =add2.([2])= instead of =add2.(2)=. Not to mention
+that in order to be composable, any function-modifying-function would
+have to have two versions: one that accepts a "normal" function of N
+arguments, and one that takes a function of single argument list. 
+
+So instead I define =adapt_arity=, which takes a function of one
+argument and an arity, and returns a function of =arity= arguments.
+
+I spent a few days trying to come up with a clean macro version of
+this, but I completely struck out. The problem I kept running into is
+that the macro is evaluated at compile time, but the arity number is
+only discovered at runtime. Eventually I reluctantly settled on using
+=Code.eval_string= instead.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+     iex> myfun = fn(args) -> args end
+     iex> myfun3 = adapt_arity(myfun, 3)
+     iex> myfun3.(:a, :b, :c)
+     [:a, :b, :c]
+     iex> myfun2 = adapt_arity(myfun, 2)
+     iex> myfun2.(:x, :y)
+     [:x, :y]
+  """
+  def adapt_arity(fun, arity) do
+    arglist = (0..arity - 1) |> Enum.map(fn(n) -> "arg#{n}" end) |> Enum.join(", ")
+    code = """
+      fn(#{arglist}) ->
+        args = [#{arglist}]
+        fun.(args)
+      end
+    """
+    {value, _binding} = Code.eval_string(code, binding, __ENV__)
+    value
+  end
+#+END_SRC
+
+Given a call like this:
+
+#+BEGIN_SRC elixir
+  adapt_arity(myfun, 3)
+#+END_SRC
+
+The following anonymous function will be returned:
+
+#+BEGIN_SRC elixir
+  fn(arg0, arg1, arg2) ->
+    args = [arg0, arg1, arg2]
+    myfun.(args)
+  end  
+#+END_SRC
+
+I also define a helper function to discover the arity of a given
+anonymous function.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> arity(&Kernel.even?/1)
+      1
+      iex> arity(&Kernel.+/2)
+      2
+  """
+  def arity(fun) do
+    (0..255) |> Enum.find fn(arity) -> is_function(fun, arity) end
+  end
+#+END_SRC
+
+The magic number 255 corresponds to [[http://www.erlang.org/doc/efficiency_guide/advanced.html][the upper bound of arguments an
+Erlang function can take]].
+
+Now on to the various function adapters. First up, =partial=.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> add2 = partial(&Kernel.+/2, [2])
+      iex> add2.(4)
+      6
+  """
+  def partial(fun, partial_args) do
+    arity = arity(fun) - length(partial_args)
+    fn(args) -> apply(fun, partial_args ++ args) end |> adapt_arity(arity)
+  end
+#+END_SRC
+
+Next, =complement=.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> not_even = complement(&Integer.even?/1)
+      iex> not_even.(2)
+      false
+      iex> not_even.(3)
+      true
+  """
+  def complement(fun) do
+    fn(args) -> !apply(fun, args) end |> adapt_arity(arity(fun))
+  end
+#+END_SRC
+
+And now =lift=, which effectively turns a function into a function
+modifier.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> negate = lift(&Kernel.-/1)
+      iex> neg_add = negate.(&Kernel.+/2)
+      iex> neg_add.(2, 2)
+      -4
+  """
+  def lift(modifier) do
+    fn(base_function) ->      
+        fn(args) -> 
+            result = apply(base_function, args)
+            modifier.(result)
+        end |> adapt_arity(arity(base_function))
+    end
+  end
+#+END_SRC
+
+Finally, =comp=, to compose N functions together.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> plus = &Kernel.+/2
+      iex> add = &Enum.reduce(&1, plus)
+      iex> comp([&Kernel.to_string/1, add]).([8, 8, 8])
+      "24"
+  """
+  def comp(funs) do
+    rfuns = funs |> Enum.reverse
+    arity = arity(funs |> Enum.first)
+    rfuns |> Enum.reduce fn(outer, inner) ->
+                             fn(args) ->
+                                 outer.(apply(inner, args))
+                             end |> adapt_arity(arity(inner))
+                         end
+  end  
+#+END_SRC
+
+The compact code for =comp= doesn't really reflect the amount of brain
+pain that went into working it out. For some reason I have a hard time
+reasoning about reductions involving function composition.
+
+Oops, one more: =juxt=.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> juxt([&Enum.empty?/1, &Enum.reverse/1, &Enum.count/1]).([:a, :b, :c])
+      [false, [:c, :b, :a], 3]
+  """
+  def juxt(funs) do
+    fn(arg) ->
+        funs |> Enum.map(fn(fun) -> fun.(arg) end)
+    end
+  end  
+#+END_SRC
+
+Exercise 1 challenges me to write a function that adds 2 to each
+element of a sequence, using a point-free style (no =fn= allowed).
+
+This would be easy enough with just the capture (=&=) operator, but
+since I've got a shiny new =partial= function, I'll use it.
+
+#+name: tests
+#+BEGIN_SRC elixir
+  test "add 2 to each element, using a point-free style" do
+    result = [1,2,3] |> Enum.map(partial(&Kernel.+/2, [2]))
+    assert result == [3,4,5]
+  end
+#+END_SRC
+
+Exercise 2 is to write a =separate= function using =juxt=.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> separate([0,1,2,3], &Integer.odd?/1)
+      [[1,3], [0,2]]
+  """
+  def separate(list, pred) do
+    juxt([&Enum.filter(&1, pred), &Enum.reject(&1, pred)]).(list)
+  end
+#+END_SRC

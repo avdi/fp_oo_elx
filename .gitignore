@@ -4,3 +4,4 @@ erl_crash.dump
 *.ez
 /Elixir.Mix.Tasks.Check.beam
 /fp_oo.html
+/lib/scratch.exs
