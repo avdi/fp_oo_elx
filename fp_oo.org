@@ -1355,11 +1355,14 @@ global(?)  context, and functions can't be defined outside a module.)
 
 UPDATE: Where I failed, [[https://twitter.com/meh99][meh]] succeeded. Check out this masterful
 rewrite using macros instead of evaluation:
-https://gist.github.com/meh/7990856
+https://gist.github.com/meh/7990856/c59f69216418e27bd01f43f47262af6870c8874a
 
 UPDATE: José Valim weighs in with an unrolled version that actually
 works, unlike my attempt:
 https://gist.github.com/josevalim/ea084b59f88de1ab6d35
+
+UPDATE: Here's the gist from meh, updated with the compile-time unrolling
+approach: https://gist.github.com/meh/7990856
 
 Given a call like this:
 
