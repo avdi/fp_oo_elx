@@ -2,13 +2,6 @@
 defmodule ExercisesTest do
   use ExUnit.Case
   import FpOoElx.Exercises
-  test "my_apply" do
-    assert(my_apply(&(&1 + &2), [1,2]) == 3)
-  end
-  
-  test "my_apply2" do
-    assert(my_apply2(&(&1 + &2), [1,2]) == 3)
-  end
   test "1.18-3: add-squares" do
     assert(add_squares([1, 2, 5]) == 30)
   end

@@ -319,7 +319,8 @@ defmodule FpOoElx.Exercises do
       2
   """
   def arity(fun) do
-    (0..255) |> Enum.find fn(arity) -> is_function(fun, arity) end
+    {:arity, value} = :erlang.fun_info(fun, :arity)
+    value
   end
   @doc """
       iex> add2 = partial(&Kernel.+/2, [2])

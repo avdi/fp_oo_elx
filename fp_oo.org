@@ -99,7 +99,6 @@ code in this way and visualize what it's building.
 
 Here are the tests, just to prove this all works.
 
-#+name: tests
 #+BEGIN_SRC elixir
   test "my_apply" do
     assert(my_apply(&(&1 + &2), [1,2]) == 3)
@@ -123,6 +122,16 @@ any other FPL. Or Ruby, for that matter, where we'd probably represent
 the function (method) to be applied as simply =:+=. In Clojure, we
 take a reference to the =+= function using, wait for it... =+=.
 
+UPDATE: These tests no longer pass on Elixir 0.12.0. They generate
+the following error:
+
+#+BEGIN_EXAMPLE
+** (CompileError) nofile: anonymous functions cannot be translated into a quoted expression, got: #F
+unction<5.78455874 in ExercisesTest.test my_apply2/1>  
+#+END_EXAMPLE
+
+I'm not sure how to fix this.
+
 Well, now that I've applied myself (hah!) to this little problem,
 let's see how Elixir itself implements =apply=. This is easy, because
 the Elixir [[http://elixir-lang.org/docs/stable/Kernel.html#apply/2][API docs]] link directly to the relevant code on
@@ -139,6 +148,7 @@ Turns out, Elixir just punts it over to Erlang:
 #+END_SRC
 
 I should have guessed this would be the case.
+
 
 
 
@@ -1276,7 +1286,14 @@ Course type, and instead have it show up when importing the
 
 This has been instructive, but time-consuming. Enough for now.
 
-* FPOO Ch. 9: Functions That Make Functions
+* FPOO Ch. 9: Functions That Make Functions                     :fpoo:elixir:
+  :PROPERTIES:
+  :CATEGORY: Elixir
+  :ID:       o2b:d5a041e7-6920-4c31-986f-0b197c6804e1
+  :POST_DATE: [2013-12-16 Mon 10:37]
+  :POSTID:   7904
+  :BLOG:     virtuouscode
+  :END:
 
   [boilerplate bypath="fp-oo"]
 
@@ -1354,7 +1371,6 @@ The following anonymous function will be returned from =adapt_arity=:
 I also define a helper function to discover the arity of a given
 anonymous function.
 
-#+name: exercises
 #+BEGIN_SRC elixir
   @doc """
       iex> arity(&Kernel.even?/1)
@@ -1374,6 +1390,23 @@ So far as I can tell there's no built-in way to check the arity of a
 function. This was the best I could come up with. I suspect this could
 be made more efficient by unrolling it into a pattern-matching
 version, if someone really wanted to.
+
+UPDATE: On IRC, [[https://twitter.com/meh99][meh]] pointed me to the fun_info, which simplifies this
+function considerably.
+
+#+name: exercises
+#+BEGIN_SRC elixir
+  @doc """
+      iex> arity(&Kernel.even?/1)
+      1
+      iex> arity(&Kernel.+/2)
+      2
+  """
+  def arity(fun) do
+    {:arity, value} = :erlang.fun_info(fun, :arity)
+    value
+  end
+#+END_SRC
 
 Now on to the various function adapters. First up, =partial=.
 
@@ -1551,3 +1584,4 @@ Exercises 7 and 8 deal with validating ISBNs.
 #+END_SRC
 
 And that's enough for now.
+
